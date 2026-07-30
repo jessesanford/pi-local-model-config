@@ -1,0 +1,64 @@
+#!/usr/bin/env zsh
+# Robust restart of oMLX serving from ~/.cache/huggingface/hub.
+# Kills any prior instance, relaunches in background, waits for health.
+# Portable: cert bundle env vars are set only if the bundle actually exists.
+
+set -u
+
+echo "→ stopping any running oMLX..."
+pkill -f "omlx serve" 2>/dev/null
+/opt/homebrew/opt/omlx/bin/omlx stop 2>/dev/null
+sleep 2
+
+for i in 1 2 3 4 5; do
+  if lsof -iTCP:8000 -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+    echo "  waiting for :8000 to free..."
+    pkill -9 -f "omlx serve" 2>/dev/null
+    sleep 2
+  else
+    break
+  fi
+done
+
+echo "→ starting oMLX (background) with tuned env..."
+
+# Only export CA bundle vars when the bundle exists on this machine.
+# On a machine without Zscaler, pointing SSL_CERT_FILE at a missing path breaks
+# Python SSL verification entirely.
+if [ -f "$HOME/.config/nativ/cacert.pem" ]; then
+  export SSL_CERT_FILE="$HOME/.config/nativ/cacert.pem"
+  export REQUESTS_CA_BUNDLE="$HOME/.config/nativ/cacert.pem"
+  export CURL_CA_BUNDLE="$HOME/.config/nativ/cacert.pem"
+  echo "  (using custom CA bundle for Zscaler compatibility)"
+fi
+
+# HF Xet fetcher is fine to disable regardless; classic HTTP downloads work everywhere.
+export HF_HUB_DISABLE_XET=1
+export HF_HUB_ENABLE_HF_TRANSFER=0
+
+nohup /opt/homebrew/opt/omlx/bin/omlx serve \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --hf-cache \
+  --log-level info \
+  > /tmp/omlx.log 2>&1 &
+
+NEW_PID=$!
+echo "  pid=$NEW_PID"
+echo $NEW_PID > /tmp/omlx.pid
+
+echo "→ waiting for server to come up..."
+for i in {1..40}; do
+  sleep 3
+  if curl -sS --max-time 2 http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
+    echo "  ✓ oMLX up on http://127.0.0.1:8000 after $((i*3))s"
+    N=$(curl -sS http://127.0.0.1:8000/v1/models | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('data', [])))" 2>/dev/null)
+    echo "  ✓ discovered $N models"
+    exit 0
+  fi
+  printf "  ...%ds\r" "$((i*3))"
+done
+
+echo "  ✗ server didn't come up in 2 min. Last 30 log lines:"
+tail -30 /tmp/omlx.log
+exit 1

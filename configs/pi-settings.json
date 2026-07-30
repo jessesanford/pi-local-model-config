@@ -1,0 +1,14 @@
+{
+  "lastChangelogVersion": "0.82.1",
+  "theme": "dark",
+  "packages": [
+    "npm:pi-smart-web-search",
+    "npm:pi-smart-fetch",
+    "npm:@narumitw/pi-retry",
+    "npm:pi-subagents"
+  ],
+  "defaultProvider": "omlx",
+  "defaultModel": "mlx-community--Laguna-S-2.1-oQ4e-fast",
+  "httpIdleTimeoutMs": 0,
+  "defaultThinkingLevel": "minimal"
+}

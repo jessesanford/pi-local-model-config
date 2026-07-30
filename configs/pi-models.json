@@ -1,0 +1,204 @@
+{
+  "providers": {
+    "local": {
+      "api": "openai-completions",
+      "apiKey": "local",
+      "baseUrl": "http://127.0.0.1:8000/v1",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "mlx-community--Laguna-S-2.1-oQ4e-fast",
+          "name": "laguna-s-2.1",
+          "contextWindow": 131072,
+          "maxTokens": 32768
+        }
+      ]
+    },
+    "omlx": {
+      "api": "openai-completions",
+      "apiKey": "omlx",
+      "baseUrl": "http://127.0.0.1:8000/v1",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "mlx-community--Laguna-S-2.1-oQ4e-fast",
+          "name": "laguna-fast",
+          "contextWindow": 131072,
+          "reasoning": true,
+          "compat": {
+            "thinkingFormat": "qwen-chat-template"
+          },
+          "maxTokens": 32768
+        },
+        {
+          "id": "mlx-community--Laguna-S-2.1-oQ4e",
+          "name": "laguna",
+          "contextWindow": 131072,
+          "reasoning": true,
+          "compat": {
+            "thinkingFormat": "qwen-chat-template"
+          },
+          "maxTokens": 32768
+        }
+      ]
+    },
+    "nativ-local": {
+      "api": "openai-completions",
+      "apiKey": "nativ",
+      "baseUrl": "http://127.0.0.1:8080/v1",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "mlx-community/Laguna-S-2.1-oQ4e-fast",
+          "name": "laguna-nativ",
+          "contextWindow": 1048576
+        }
+      ]
+    },
+    "nativ": {
+      "api": "openai-completions",
+      "apiKey": "nativ",
+      "baseUrl": "http://127.0.0.1:8080/v1",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": true
+      },
+      "models": [
+        {
+          "contextWindow": 131072,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "deadbydawn101/gemma-4-E4B-Agentic-Opus-Reasoning-GeminiCLI-mlx-4bit",
+          "input": [
+            "text",
+            "image"
+          ],
+          "name": "gemma-4-E4B-Agentic-Opus-Reasoning-GeminiCLI-mlx-4bit",
+          "reasoning": true
+        },
+        {
+          "contextWindow": 131072,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "deadbydawn101/gemma-4-E4B-mlx-4bit",
+          "input": [
+            "text",
+            "image"
+          ],
+          "name": "gemma-4-E4B-mlx-4bit",
+          "reasoning": true
+        },
+        {
+          "contextWindow": 262144,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "dealignai/Gemma-4-31B-JANG_4M-Uncensored",
+          "input": [
+            "text",
+            "image"
+          ],
+          "name": "Gemma-4-31B-JANG_4M-Uncensored",
+          "reasoning": true
+        },
+        {
+          "contextWindow": 262144,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "lmstudio-community/Qwen3-Coder-Next-MLX-4bit",
+          "input": [
+            "text"
+          ],
+          "name": "Qwen3-Coder-Next-MLX-4bit",
+          "reasoning": false
+        },
+        {
+          "contextWindow": 1048576,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "mlx-community/Laguna-S-2.1-oQ4e",
+          "input": [
+            "text"
+          ],
+          "name": "Laguna-S-2.1-oQ4e",
+          "reasoning": true
+        },
+        {
+          "contextWindow": 1048576,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "mlx-community/Laguna-S-2.1-oQ4e-fast",
+          "input": [
+            "text"
+          ],
+          "name": "Laguna-S-2.1-oQ4e-fast",
+          "reasoning": true
+        },
+        {
+          "contextWindow": 262144,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
+          "input": [
+            "text",
+            "image"
+          ],
+          "name": "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
+          "reasoning": true
+        },
+        {
+          "contextWindow": 262144,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "poolside/Laguna-S-2.1-NVFP4-mlx",
+          "input": [
+            "text"
+          ],
+          "name": "Laguna-S-2.1-NVFP4-mlx",
+          "reasoning": true
+        }
+      ]
+    }
+  }
+}

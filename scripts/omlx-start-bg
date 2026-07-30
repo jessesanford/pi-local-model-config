@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+# Background variant: hands the server off to oMLX's managed background service.
+# Portable: cert bundle env vars are set only if the bundle actually exists.
+
+set -e
+
+if [ -f "$HOME/.config/nativ/cacert.pem" ]; then
+  export SSL_CERT_FILE="$HOME/.config/nativ/cacert.pem"
+  export REQUESTS_CA_BUNDLE="$HOME/.config/nativ/cacert.pem"
+  export CURL_CA_BUNDLE="$HOME/.config/nativ/cacert.pem"
+fi
+export HF_HUB_DISABLE_XET=1
+export HF_HUB_ENABLE_HF_TRANSFER=0
+
+exec /opt/homebrew/opt/omlx/bin/omlx start "$@"

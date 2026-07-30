@@ -1,0 +1,8 @@
+#!/usr/bin/env zsh
+# Quick health check
+if curl -sS --max-time 3 http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
+  echo "oMLX: UP on :8000"
+  curl -sS http://127.0.0.1:8000/v1/models | python3 -m json.tool 2>/dev/null | head -30
+else
+  echo "oMLX: DOWN (start with: omlx-start-bg  or  omlx-start)"
+fi

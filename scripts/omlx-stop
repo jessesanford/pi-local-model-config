@@ -1,0 +1,5 @@
+#!/usr/bin/env zsh
+# Stop background oMLX server; also kill any foreground omlx serve if lingering
+/opt/homebrew/opt/omlx/bin/omlx stop 2>/dev/null || true
+pkill -f "omlx serve" 2>/dev/null || true
+echo "oMLX stopped."
