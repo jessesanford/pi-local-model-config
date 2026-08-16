@@ -128,6 +128,10 @@ This fix was verified with a cold headless pi response in 10 seconds.
 
 ## Disaster recovery
 
+[docs/AGENT_USAGE_PROMPT.md](docs/AGENT_USAGE_PROMPT.md) is a paste-ready handoff for
+another agent that needs to use the running model, start/check the daemon, call the API,
+or find this project's documentation.
+
 [docs/PROMPT.md](docs/PROMPT.md) is the normal rebuild prompt when this repository is
 available. [docs/CONTINUITY.md](docs/CONTINUITY.md) is self-contained and instructs an
 agent to recreate the repository, scripts, configs, linking behavior, daemon, and tests
