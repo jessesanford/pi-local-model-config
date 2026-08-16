@@ -12,6 +12,7 @@ it does not limit which models oMLX can serve.
 | Alias | oMLX model ID | Input |
 |---|---|---|
 | `qwen` | `lmstudio-community--Qwen3.8-27B-MLX-8bit` | text, image |
+| `qwen-bf16` / `qwen16` | `mlx-community--Qwen3.8-27B-bf16` | text, image |
 | `laguna-fast` | `mlx-community--Laguna-S-2.1-oQ4e-fast` | text |
 | `laguna` | `mlx-community--Laguna-S-2.1-oQ4e` | text |
 | `glm` | `mlx-community--GLM-4.5-Air-8bit` | text |
@@ -59,7 +60,12 @@ Switch pi's default without restarting the multi-model daemon:
 omlx-model laguna-fast
 omlx-model glm
 omlx-model qwen
+omlx-model qwen-bf16
 ```
+
+The bf16 model is linked and selectable but has not been loaded or inference-tested. It is
+about 51 GiB versus 28 GiB for the default 8-bit model. Selecting it changes pi's default;
+the weights load only when the first request is sent.
 
 Restart only when the server itself needs restarting:
 
@@ -98,6 +104,8 @@ Verified on August 15, 2026:
 - oMLX `0.5.7` discovers Qwen as `qwen3_5`, VLM engine, 262,144-token context.
 - LM Studio's six weight shards are hardlinked into Hugging Face cache revision
    `241ebb5f1d60b122fd653da658836a55feb9e2b0` with no duplicated model storage.
+- The optional bf16 model's 11 shards are hardlinked at revision
+   `6f265714824f3c38d4452baa1628aef3d9b9aae9`; it remains untested and unloaded.
 - The API returned HTTP 200 and exact content `QWEN_OK`.
 - Headless pi, using its configured defaults, returned exact content `PI_QWEN_OK`.
 - The Homebrew service was loaded and running as `homebrew.mxcl.omlx`.

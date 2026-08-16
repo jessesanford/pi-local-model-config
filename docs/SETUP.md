@@ -53,6 +53,7 @@ so it does not duplicate model weights:
 
 ```sh
 python3 tools/link_lmstudio_to_hf.py lmstudio-community/Qwen3.8-27B-MLX-8bit
+python3 tools/link_lmstudio_to_hf.py mlx-community/Qwen3.8-27B-bf16  # optional
 ```
 
 Run it only after LM Studio finishes downloading. It accepts multiple model IDs; omit
@@ -66,7 +67,7 @@ omlx-status
 pi -p "Reply with OK"
 ```
 
-Aliases are `qwen`, `laguna-fast`, `laguna`, and `glm`. Any full oMLX model ID also
+Aliases are `qwen`, `qwen-bf16`/`qwen16`, `laguna-fast`, `laguna`, and `glm`. Any full oMLX model ID also
 works. With no model argument, `omlx-model`, `omlx-start`, `omlx-start-bg`, and
 `omlx-restart` select Qwen and provider `omlx`. Changing pi's model does not require a
 restart:
@@ -75,7 +76,11 @@ restart:
 omlx-model glm
 omlx-model laguna-fast
 omlx-model qwen
+omlx-model qwen-bf16  # optional 51 GiB bf16 model; first request loads it
 ```
+
+The bf16 option is registered with 262,144 context and image support, but is intentionally
+not inference-tested by this setup. Return to the default with `omlx-model qwen`.
 
 Restart for daemon or configuration changes:
 

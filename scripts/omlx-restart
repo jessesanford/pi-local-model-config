@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 # Robust restart of oMLX serving from ~/.cache/huggingface/hub (multi-model).
 # Defaults pi to Qwen; use -m/--model <alias> to select another model.
-# Aliases: qwen (default), laguna-fast, laguna, glm
+# Aliases: qwen (default), qwen-bf16, laguna-fast, laguna, glm
 # Kills any prior instance, relaunches in background, waits for health.
 # Portable: cert bundle env vars are set only if the bundle actually exists.
 

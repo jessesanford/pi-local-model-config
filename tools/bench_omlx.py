@@ -5,6 +5,8 @@ import json, time, urllib.request, urllib.error
 MODEL_ALIASES = {
     "qwen": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
     "qwen3.8": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+    "qwen-bf16": "mlx-community--Qwen3.8-27B-bf16",
+    "qwen16": "mlx-community--Qwen3.8-27B-bf16",
     "laguna-fast": "mlx-community--Laguna-S-2.1-oQ4e-fast",
     "laguna": "mlx-community--Laguna-S-2.1-oQ4e",
     "glm": "mlx-community--GLM-4.5-Air-8bit",

@@ -17,6 +17,8 @@ existing settings, and never expose credentials.
 - pi provider: `omlx`, OpenAI completions API at `http://127.0.0.1:8000/v1`.
 - Default model: `lmstudio-community--Qwen3.8-27B-MLX-8bit`.
 - Qwen aliases: `qwen`, `qwen3.8`; thinking disabled; 262,144 context; image input.
+- Optional bf16: `mlx-community--Qwen3.8-27B-bf16`, aliases `qwen-bf16` and `qwen16`,
+  about 51 GiB, linked but not inference-tested, never the default.
 - Retain Laguna aliases `laguna-fast`, `laguna` and GLM aliases `glm`, `glm-air`.
 - SSD cache directory: `~/.omlx/cache-0.5.7`, isolated from incompatible legacy caches.
 - Do not install `@narumitw/pi-retry`; its 90-second watchdog aborts valid cold loads.
@@ -96,6 +98,11 @@ model_type: qwen3_5
 architectures: Qwen3_5ForConditionalGeneration
 vision_config: present
 ```
+
+When present, also link `~/.lmstudio/models/mlx-community/Qwen3.8-27B-bf16` with
+`tools/link_lmstudio_to_hf.py mlx-community/Qwen3.8-27B-bf16`. A verified download had
+11 shards, 50.98 GiB, revision `6f265714824f3c38d4452baa1628aef3d9b9aae9`, and 24
+snapshot links. Register it in pi/oMLX but do not load or test it unless explicitly asked.
 
 ## 4. Start the daemon
 

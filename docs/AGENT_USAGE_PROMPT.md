@@ -16,6 +16,7 @@ local model is appropriate for coding, analysis, drafting, or image-aware prompt
 - Model ID: `lmstudio-community--Qwen3.8-27B-MLX-8bit`.
 - pi provider: `omlx`.
 - pi model alias: `qwen` or `qwen3.8`.
+- Optional bf16 alias: `qwen-bf16` or `qwen16` (linked, not inference-tested).
 - Context window: 262,144 tokens.
 - Inputs: text and images.
 - Thinking is disabled by default.
@@ -103,12 +104,16 @@ The oMLX daemon is multi-model. Changing pi's default does not require restartin
 
 ```sh
 omlx-model qwen
+omlx-model qwen-bf16
 omlx-model laguna-fast
 omlx-model laguna
 omlx-model glm
 ```
 
 Return to Qwen with `omlx-model qwen` or simply `omlx-model`.
+
+`qwen-bf16` selects `mlx-community--Qwen3.8-27B-bf16`, a roughly 51 GiB model. It
+has not been loaded or tested. Selection alone does not load weights; the first request does.
 
 ## Operational cautions
 

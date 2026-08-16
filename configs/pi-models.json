@@ -37,6 +37,16 @@
           "maxTokens": 32768
         },
         {
+          "id": "mlx-community--Qwen3.8-27B-bf16",
+          "name": "qwen3.8-27b-bf16",
+          "contextWindow": 262144,
+          "input": [
+            "text",
+            "image"
+          ],
+          "maxTokens": 32768
+        },
+        {
           "id": "mlx-community--Laguna-S-2.1-oQ4e-fast",
           "name": "laguna-fast",
           "contextWindow": 131072,

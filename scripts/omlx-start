@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 # Foreground oMLX serving from the HF cache (multi-model).
 # Defaults pi to Qwen; use -m/--model <alias> to select another model.
-# Aliases: qwen (default), laguna-fast, laguna, glm
+# Aliases: qwen (default), qwen-bf16, laguna-fast, laguna, glm
 # Any extra args are passed through to omlx serve.
 # Portable: cert bundle env vars are set only if the bundle actually exists.
 

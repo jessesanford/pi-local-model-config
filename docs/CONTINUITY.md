@@ -32,6 +32,7 @@ Canonical aliases and oMLX API IDs:
 
 ```text
 qwen, qwen3.8 -> lmstudio-community--Qwen3.8-27B-MLX-8bit
+qwen-bf16, qwen16 -> mlx-community--Qwen3.8-27B-bf16
 laguna-fast   -> mlx-community--Laguna-S-2.1-oQ4e-fast
 laguna        -> mlx-community--Laguna-S-2.1-oQ4e
 glm, glm-air  -> mlx-community--GLM-4.5-Air-8bit
@@ -103,6 +104,13 @@ Create `configs/pi-models.json`. It may contain other providers, but `providers.
       "maxTokens": 32768
     },
     {
+      "id": "mlx-community--Qwen3.8-27B-bf16",
+      "name": "qwen3.8-27b-bf16",
+      "contextWindow": 262144,
+      "input": ["text", "image"],
+      "maxTokens": 32768
+    },
+    {
       "id": "mlx-community--Laguna-S-2.1-oQ4e-fast",
       "name": "laguna-fast",
       "contextWindow": 131072,
@@ -136,6 +144,7 @@ Create `configs/omlx-model-settings.json`:
 ```json
 {
   "lmstudio-community--Qwen3.8-27B-MLX-8bit": {"enable_thinking": false},
+  "mlx-community--Qwen3.8-27B-bf16": {"enable_thinking": false},
   "mlx-community--Laguna-S-2.1-oQ4e-fast": {"enable_thinking": true},
   "mlx-community--Laguna-S-2.1-oQ4e": {"enable_thinking": true},
   "mlx-community--GLM-4.5-Air-8bit": {"enable_thinking": false},
@@ -219,6 +228,12 @@ Canonical Qwen source path:
 The verified download had six of six indexed shards and 27.51 GiB. The verified revision was
 `241ebb5f1d60b122fd653da658836a55feb9e2b0`, with 18 snapshot symlinks and no broken links.
 A newer upstream revision is acceptable when manifest validation succeeds.
+
+Optional bf16 source: `~/.lmstudio/models/mlx-community/Qwen3.8-27B-bf16`. The verified
+download had 11 shards, 50.98 GiB, revision
+`6f265714824f3c38d4452baa1628aef3d9b9aae9`, 24 snapshot links, and 11/11 shared shard
+inodes. Register it as `qwen-bf16`/`qwen16`, but keep 8-bit Qwen as the default and do not
+load or inference-test bf16 without explicit instruction.
 
 On macOS, compare source inode with `stat -f %i` and dereferenced snapshot inode with
 `stat -Lf %i`. A non-dereferenced check compares the symlink inode and falsely reports that
