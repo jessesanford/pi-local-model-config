@@ -1,8 +1,28 @@
 #!/usr/bin/env zsh
 # Background variant: hands the server off to oMLX's managed background service.
+# Defaults pi to Qwen; use -m/--model <alias> to select another model.
+# Aliases: qwen (default), laguna-fast, laguna, glm
+# Any extra args are passed through to omlx start.
 # Portable: cert bundle env vars are set only if the bundle actually exists.
 
 set -e
+
+SCRIPT_DIR=${0:A:h}
+source "$SCRIPT_DIR/omlx-model"
+
+MODEL_ALIAS="$OMLX_DEFAULT_MODEL"
+PASSTHRU=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m|--model)
+      [[ $# -ge 2 ]] || { print -u2 "missing value for $1"; exit 2; }
+      MODEL_ALIAS="$2"; shift 2
+      ;;
+    *) PASSTHRU+=("$1"); shift ;;
+  esac
+done
+
+_omlx_set_pi_model "$MODEL_ALIAS"
 
 if [ -f "$HOME/.config/nativ/cacert.pem" ]; then
   export SSL_CERT_FILE="$HOME/.config/nativ/cacert.pem"
@@ -12,4 +32,4 @@ fi
 export HF_HUB_DISABLE_XET=1
 export HF_HUB_ENABLE_HF_TRANSFER=0
 
-exec /opt/homebrew/opt/omlx/bin/omlx start "$@"
+exec /opt/homebrew/opt/omlx/bin/omlx start "${PASSTHRU[@]}"

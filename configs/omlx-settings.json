@@ -7,15 +7,7 @@
     "cors_origins": [
       "*"
     ],
-    "server_aliases": [
-      "localhost",
-      "127.0.0.1",
-      "SE1LH4MRY9X7R",
-      "SE1LH4MRY9X7R.local",
-      "172.21.131.67",
-      "100.64.0.1",
-      "172.21.1.7"
-    ],
+    "server_aliases": [],
     "sse_keepalive_mode": "chunk",
     "auto_start_on_launch": true,
     "burst_decode_mode": "aggressive",
@@ -23,9 +15,9 @@
   },
   "model": {
     "model_dirs": [
-      "/Users/jesse.sanford/.omlx/models"
+      "~/.omlx/models"
     ],
-    "model_dir": "/Users/jesse.sanford/.omlx/models",
+    "model_dir": null,
     "model_fallback": false,
     "hide_helper_models": false
   },

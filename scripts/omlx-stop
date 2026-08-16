@@ -1,5 +1,13 @@
 #!/usr/bin/env zsh
-# Stop background oMLX server; also kill any foreground omlx serve if lingering
-/opt/homebrew/opt/omlx/bin/omlx stop 2>/dev/null || true
+# Stop all oMLX processes. Handles launchd-managed agents, background daemon,
+# and any foreground serve processes.
+
+# Unload any launchd-managed oMLX agents first (pkill alone won't stick — launchd respawns)
+for plist in ~/Library/LaunchAgents/io.omlx.*.plist(N); do
+  launchctl bootout gui/$(id -u) "$plist" 2>/dev/null && echo "unloaded: $(basename $plist)"
+done
+
 pkill -f "omlx serve" 2>/dev/null || true
+pkill -f "omlx-server" 2>/dev/null || true
+/opt/homebrew/opt/omlx/bin/omlx stop 2>/dev/null || true
 echo "oMLX stopped."

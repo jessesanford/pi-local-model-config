@@ -1,111 +1,137 @@
-# pi + Laguna-S 2.1 + MLX on Apple Silicon (M5 Max 128GB)
+# pi local model config
 
-Full working config that runs the [pi coding agent](https://pi.dev) against a local
-`mlx-community/Laguna-S-2.1-oQ4e-fast` model served by [oMLX](https://github.com/jundot/omlx)
-with tuned sampling, prefix caching, and native thinking-mode toggling.
+Configuration and utilities for running the [pi coding agent](https://pi.dev) with any
+local MLX model served by [oMLX](https://github.com/jundot/omlx) on Apple Silicon.
 
-Hardware/OS target: **Apple Silicon Mac (M5 Max 40-core, 128 GB), macOS 26+.**
-Should work on any M-series with enough RAM (~65 GB peak for Laguna oQ4e-fast).
+One oMLX daemon discovers every model in its configured directories and Hugging Face
+cache, then loads the model requested by pi. The `--model` option changes pi's default;
+it does not limit which models oMLX can serve.
 
-## What's inside
+## Included presets
 
-```
-configs/
-  omlx-settings.json         → ~/.omlx/settings.json          — oMLX server tuning
-  omlx-model-settings.json   → ~/.omlx/models/model_settings.json — per-model enable_thinking
-  pi-settings.json           → ~/.pi/agent/settings.json      — pi provider/model defaults
-  pi-models.json             → ~/.pi/agent/models.json        — omlx + fallback provider defs
-  pi-APPEND_SYSTEM.md        → ~/.pi/agent/APPEND_SYSTEM.md   — credential handling, gh multi-host, subagents, context size
-scripts/
-  omlx-start                 foreground server
-  omlx-start-bg              background/managed server
-  omlx-stop                  shut down
-  omlx-status                health check
-  omlx-restart               robust kill-then-relaunch (handles stuck ports)
-tools/
-  link_lmstudio_to_hf.py     hardlink LM Studio MLX models into HF cache format
-  pi_proxy2.py               request-body capture proxy for diagnostics
-  bench_omlx.py              decode/prefill/TTFT benchmark
-  bench_proxy.py             heavier request-timing proxy
-docs/
-  SETUP.md                   full reinstall instructions
-  PROMPT.md                  ready-to-paste Claude prompt that rebuilds this end-to-end
-```
+| Alias | oMLX model ID | Input |
+|---|---|---|
+| `qwen` | `lmstudio-community--Qwen3.8-27B-MLX-8bit` | text, image |
+| `laguna-fast` | `mlx-community--Laguna-S-2.1-oQ4e-fast` | text |
+| `laguna` | `mlx-community--Laguna-S-2.1-oQ4e` | text |
+| `glm` | `mlx-community--GLM-4.5-Air-8bit` | text |
 
-## Quick start (already set up once)
+Qwen is the shipped default. Running `omlx-start`, `omlx-start-bg`, `omlx-restart`, or
+`omlx-model` without a model argument selects Qwen and the `omlx` pi provider. Aliases
+are conveniences, not a closed list: any model ID returned by `GET /v1/models` can be
+selected after its metadata is added to pi.
 
-```
-omlx-start-bg          # start server (or omlx-restart if stuck)
-pi -p "hello"          # test via pi
-Shift+Tab              # toggle thinking level inside pi TUI
+## oMLX or mlx-vlm?
+
+The Qwen model card recommends `mlx-vlm` because Qwen3.8-27B is a vision-language
+model. Use **oMLX for pi**: oMLX includes `mlx-vlm`, exposes VLMs through an
+OpenAI-compatible API, and adds multi-model serving, caching, memory management, and a
+managed macOS service. Direct `mlx-vlm.generate` remains useful for one-off image
+prompts, but it is not the daemon configured here.
+
+Use oMLX `0.5.7` or newer for current Qwen VLM support:
+
+```sh
+omlx --version
+brew update && brew upgrade omlx
 ```
 
-## Full reinstall on a new Mac
+## Quick start
 
-Open `docs/PROMPT.md` and paste the entire contents into a Claude session with tool access.
-It runs 9 verification-gated phases, installs everything, downloads/links models,
-tunes settings, and verifies end-to-end.
+Follow [docs/SETUP.md](docs/SETUP.md) once, then after LM Studio finishes downloading:
 
-## Baseline performance (M5 Max 128GB, High Power mode)
+```sh
+python3 tools/link_lmstudio_to_hf.py lmstudio-community/Qwen3.8-27B-MLX-8bit
+omlx-start-bg --model qwen
+omlx-status
+pi -p "Reply with OK"
+```
 
-| Test | Result |
-|---|---|
-| Decode (small ctx) | ~62-66 tok/s |
-| Decode (1k ctx) | ~59-60 tok/s |
-| TTFT (small prompt) | ~360 ms |
-| TTFT (1k prompt) | ~640 ms |
-| Peak RAM (Laguna oQ4e-fast @ 1k) | ~60 GB |
+The default headless command needs no provider or model override:
 
-Matches the published omlx.ai benchmark within noise.
-**Low Power Mode roughly halves throughput** — keep it off.
+```sh
+pi -p "Your prompt"
+```
 
-## What's tuned
+Switch pi's default without restarting the multi-model daemon:
 
-- **Sampling** (author's shipped defaults): temp=1.0, top_p=1.0, top_k=20, min_p=0.0
-- **Context window**: 131,072 (128k) — good headroom, ~2min max cold prefill worst case
-- **Max output tokens per response**: 32,768
-- **Prefix caching**: 8 GB hot cache, 8192 initial blocks (128k tokens of prefix cache)
-- **Burst decode**: aggressive
-- **Chunked prefill**: on
-- **KV cache quantization** (TurboQuant): off — you have RAM for full quality
-- **pi HTTP idle timeout**: disabled (no more disconnect on long prefills)
-- **pi thinking-format**: `qwen-chat-template` — pi's `--thinking off/high` translates to
-  `chat_template_kwargs.enable_thinking` server-side (whether the client-side wiring reaches
-  the server is not conclusively verified — see PROMPT.md Phase 8)
+```sh
+omlx-model laguna-fast
+omlx-model glm
+omlx-model qwen
+```
 
-## What's protected
+Restart only when the server itself needs restarting:
 
-`~/.pi/agent/APPEND_SYSTEM.md` covers four persistent policies:
+```sh
+omlx-restart --model qwen
+```
 
-1. **`credential_handling`** — no extracting/printing/hardcoding tokens, no `git credential fill`
-   or keychain sweeps, no `gh auth login --token-stdin` from stdout of a previous command.
-2. **`gh_multi_host`** — for machines dual-authenticated to a corporate GHE instance
-   AND public `github.com`. Every `gh` call must pass explicit `--hostname`. Never touch
-   `GH_HOST`. Never `gh auth login/switch/refresh` without explicit user instruction.
-   The shipped APPEND_SYSTEM.md uses `<enterprise-ghe-host>` as a placeholder — replace
-   with your corp host or delete the block if you don't have one.
-3. **`subagents`** — when the `pi-subagents` extension is active, prefer parallel independent
-   work and isolated risky operations via subagents. Don't fabricate the tool if it's not registered.
-4. **`context_size`** — keep prompts small; suggest `/compact` at ~100k tokens.
+Full oMLX IDs work too:
 
-## Installed pi extensions
+```sh
+omlx-model mlx-community--Laguna-S-2.1-oQ4e
+omlx-start-bg --model my-org--my-model
+python3 tools/bench_omlx.py --model my-org--my-model --no-nativ
+```
 
-- `pi-subagents` — Claude Code-style parallel subagents (2790★, MIT)
-- `@narumitw/pi-retry` — stall-watchdog retry for local models
-- `pi-smart-web-search` — improved web search
-- `pi-smart-fetch` — improved fetch
+## macOS service
 
-## Known limitations
+`omlx-start-bg` runs `omlx start`, which delegates a Homebrew installation to
+`brew services`. The daemon is oMLX, not standalone `mlx-vlm`.
 
-- **DFlash speculative decoding does not work on Mac for Laguna** as of oMLX 0.5.3
-  (server errors "DFlash supports only Qwen and Gemma4 models"). Draft model is cached but not usable.
-  Track [omlx#2398](https://github.com/jundot/omlx/issues/2398).
-- **Nativ 0.6.8 bundled mlx-vlm** also lacks a `laguna_dflash` drafter.
-- **Podman / Docker Desktop VMs share GPU** with MLX — pause them if throughput drops.
+```sh
+omlx-start-bg --model qwen  # managed background service
+omlx-start --model qwen     # foreground server
+omlx-restart --model qwen   # force-stop and relaunch
+omlx-stop
+omlx-status
+```
 
-## Do NOT install
+Service logs are in `$(brew --prefix)/var/log/omlx.log` and
+`~/.omlx/logs/server.log`. `omlx-restart` writes `/tmp/omlx.log`.
 
-- `pi-lean-ctx` — needs external `lean-ctx` binary; installer wraps Claude Code / adds shell
-  allowlist / injects MCP into VS Code / modifies zshrc. Uninstall aggressively.
-- Any of the `pi-omlx-*` provider adapters — pi's generic `openai-completions` provider already
-  works and adding these tramples the custom sampling / thinking-format config.
+## Verified installation
+
+Verified on August 15, 2026:
+
+- oMLX `0.5.7` discovers Qwen as `qwen3_5`, VLM engine, 262,144-token context.
+- LM Studio's six weight shards are hardlinked into Hugging Face cache revision
+   `241ebb5f1d60b122fd653da658836a55feb9e2b0` with no duplicated model storage.
+- The API returned HTTP 200 and exact content `QWEN_OK`.
+- Headless pi, using its configured defaults, returned exact content `PI_QWEN_OK`.
+- The Homebrew service was loaded and running as `homebrew.mxcl.omlx`.
+
+Qwen thinking is disabled in `configs/omlx-model-settings.json` and pi's default thinking
+level is `off`; this avoids reasoning text leaking into short responses.
+
+## Disaster recovery
+
+[docs/PROMPT.md](docs/PROMPT.md) is the normal rebuild prompt when this repository is
+available. [docs/CONTINUITY.md](docs/CONTINUITY.md) is self-contained and instructs an
+agent to recreate the repository, scripts, configs, linking behavior, daemon, and tests
+when no repository files survive.
+
+## Adding another model
+
+1. Download an MLX model with LM Studio, Hugging Face, or the oMLX dashboard.
+2. For LM Studio, run `link_lmstudio_to_hf.py <org/repo>`.
+3. Confirm its API ID with `omlx-status`.
+4. Add its metadata under the `omlx` provider in `configs/pi-models.json` and reinstall
+   that file to `~/.pi/agent/models.json`.
+5. Select it with `omlx-model <api-model-id>`.
+
+The linker accepts multiple model IDs. With no IDs, it links every complete MLX model
+under `~/.lmstudio/models`.
+
+## Layout
+
+```text
+configs/  oMLX and pi configuration
+scripts/  model selection and oMLX lifecycle commands
+tools/    LM Studio cache linker, benchmarks, and diagnostic proxies
+docs/     setup and rebuild notes
+```
+
+The shipped cache/context tuning targets a 128 GB Apple Silicon Mac. Lower-memory
+systems should reduce the limits in `configs/omlx-settings.json`.

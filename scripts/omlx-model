@@ -1,0 +1,47 @@
+#!/usr/bin/env zsh
+
+OMLX_DEFAULT_MODEL="qwen"
+
+_omlx_resolve_model() {
+  case "$1" in
+    qwen|qwen3.8) echo "lmstudio-community--Qwen3.8-27B-MLX-8bit" ;;
+    laguna-fast)  echo "mlx-community--Laguna-S-2.1-oQ4e-fast" ;;
+    laguna)       echo "mlx-community--Laguna-S-2.1-oQ4e" ;;
+    glm|glm-air)  echo "mlx-community--GLM-4.5-Air-8bit" ;;
+    *)            echo "$1" ;;
+  esac
+}
+
+_omlx_set_pi_model() {
+  local model_id
+  local pi_settings="$HOME/.pi/agent/settings.json"
+  model_id=$(_omlx_resolve_model "$1")
+
+  if [[ ! -f "$pi_settings" ]]; then
+    print -u2 "pi settings not found: $pi_settings"
+    return 1
+  fi
+
+  PI_SETTINGS="$pi_settings" MODEL_ID="$model_id" python3 - <<'PY'
+import json
+import os
+
+path = os.environ["PI_SETTINGS"]
+with open(path) as settings_file:
+    settings = json.load(settings_file)
+settings["defaultProvider"] = "omlx"
+settings["defaultModel"] = os.environ["MODEL_ID"]
+with open(path, "w") as settings_file:
+    json.dump(settings, settings_file, indent=2)
+    settings_file.write("\n")
+PY
+  echo "pi default model -> $model_id"
+}
+
+if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
+  if [[ $# -gt 1 ]]; then
+    print -u2 "usage: omlx-model [alias-or-model-id]"
+    exit 2
+  fi
+  _omlx_set_pi_model "${1:-$OMLX_DEFAULT_MODEL}"
+fi

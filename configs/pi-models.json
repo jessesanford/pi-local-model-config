@@ -27,6 +27,16 @@
       },
       "models": [
         {
+          "id": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+          "name": "qwen3.8-27b",
+          "contextWindow": 262144,
+          "input": [
+            "text",
+            "image"
+          ],
+          "maxTokens": 32768
+        },
+        {
           "id": "mlx-community--Laguna-S-2.1-oQ4e-fast",
           "name": "laguna-fast",
           "contextWindow": 131072,
@@ -44,6 +54,12 @@
           "compat": {
             "thinkingFormat": "qwen-chat-template"
           },
+          "maxTokens": 32768
+        },
+        {
+          "id": "mlx-community--GLM-4.5-Air-8bit",
+          "name": "glm-air",
+          "contextWindow": 131072,
           "maxTokens": 32768
         }
       ]

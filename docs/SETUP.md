@@ -1,150 +1,125 @@
-# Setup guide
+# Setup
 
-## Prerequisites
+## Requirements
 
-- macOS 15+ (Sequoia) or macOS 26+
-- Apple Silicon (M1/M2/M3/M4/M5). This config is tuned for M5 Max 40-core / 128GB.
-- Homebrew installed
-- Node.js (for pi installation)
-- Python 3.11+ (Homebrew's; used for tools/)
-- ~200 GB free disk (Laguna oQ4e-fast alone is ~60 GB; you likely want the oQ4e
-  variant too plus HF cache overhead)
-- **Disable macOS Low Power Mode** in Battery settings — it roughly halves MLX throughput
+- Apple Silicon Mac with enough unified memory for the selected model
+- macOS 15 or newer
+- Homebrew, Node.js, and Python 3.11+
+- oMLX 0.5.7 or newer for current Qwen VLM support
 
-## 1. Install pi
+## 1. Install pi and oMLX
 
-```
+```sh
 curl -fsSL https://pi.dev/install.sh | sh
-```
 
-Verify: `pi --version`
-
-## 2. Install oMLX
-
-```
 brew tap jundot/omlx https://github.com/jundot/omlx
-brew trust jundot/omlx
 brew install omlx
+brew update && brew upgrade omlx
+
+pi --version
+omlx --version
 ```
 
-Verify: `omlx --version` (expect 0.5.3+).
+oMLX includes `mlx-vlm` and is the OpenAI-compatible, multi-model daemon used by pi.
 
-## 3. Download models
+## 2. Install configuration
 
-### 3a. Preferred: via oMLX or manually into HF cache
+```sh
+mkdir -p ~/.omlx/models ~/.pi/agent ~/.local/bin
 
-If HuggingFace CDN downloads work directly on your network, oMLX will fetch on demand.
-If you're on a corporate network (Zscaler etc.), see the Zscaler section below.
+cp configs/omlx-settings.json ~/.omlx/settings.json
+cp configs/omlx-model-settings.json ~/.omlx/models/model_settings.json
+cp configs/pi-settings.json ~/.pi/agent/settings.json
+cp configs/pi-models.json ~/.pi/agent/models.json
+cp configs/pi-APPEND_SYSTEM.md ~/.pi/agent/APPEND_SYSTEM.md
 
-Models this config expects (only oQ4e-fast is strictly required):
-- `mlx-community/Laguna-S-2.1-oQ4e-fast`  (primary, ~60 GB, 1M context)
-- `mlx-community/Laguna-S-2.1-oQ4e`       (older/slower, keep for A/B, ~60 GB)
-- `poolside/Laguna-S-2.1-DFlash`          (draft for spec decode; NOT USABLE today,
-                                           see Known Limitations, but keep for the future)
-
-You can pull them via any of:
-```
-# via oMLX (uses ~/.cache/huggingface/hub automatically if --hf-cache passed to serve)
-omlx serve --hf-cache   # downloads on first chat/completions request for that model
-
-# or via huggingface_hub CLI
-hf download mlx-community/Laguna-S-2.1-oQ4e-fast
-```
-
-### 3b. Alternate: reuse LM Studio downloads
-
-If you already have models in `~/.lmstudio/models/`, use the linker to hardlink them
-into HF cache format without duplicating storage:
-
-```
-python3 tools/link_lmstudio_to_hf.py
-```
-
-This scans `~/.lmstudio/models/<org>/<repo>/` for MLX models (config.json + safetensors),
-queries HuggingFace for the correct blob hashes, then hardlinks each file into
-`~/.cache/huggingface/hub/models--<org>--<repo>/blobs/<etag>` with proper symlinks in
-`snapshots/<revision>/`. Storage cost is zero (hardlinks share inodes).
-
-## 4. Install configs
-
-```
-# oMLX
-cp configs/omlx-settings.json         ~/.omlx/settings.json
-mkdir -p ~/.omlx/models
-cp configs/omlx-model-settings.json   ~/.omlx/models/model_settings.json
-
-# pi
-mkdir -p ~/.pi/agent
-cp configs/pi-settings.json           ~/.pi/agent/settings.json
-cp configs/pi-models.json             ~/.pi/agent/models.json
-```
-
-**IMPORTANT:** the copied `omlx-settings.json` has `auth.secret_key` set to a placeholder.
-oMLX will regenerate a real key on first launch — that's fine.
-
-## 5. Install scripts
-
-```
-mkdir -p ~/.local/bin
 cp scripts/omlx-* ~/.local/bin/
 chmod +x ~/.local/bin/omlx-*
-# make sure ~/.local/bin is on PATH
-grep -q '.local/bin' ~/.zshrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 ```
 
-## 6. Start the server
+Ensure `~/.local/bin` is on `PATH`.
 
-Foreground:
-```
-omlx-start
+## 3. Link LM Studio models
+
+LM Studio and Hugging Face use different cache layouts. The linker creates hardlinks,
+so it does not duplicate model weights:
+
+```sh
+python3 tools/link_lmstudio_to_hf.py lmstudio-community/Qwen3.8-27B-MLX-8bit
 ```
 
-Or background:
-```
+Run it only after LM Studio finishes downloading. It accepts multiple model IDs; omit
+them to scan all complete LM Studio MLX downloads.
+
+## 4. Start and select
+
+```sh
 omlx-start-bg
-```
-
-Then verify:
-```
 omlx-status
-pi -p "reply: OK"
+pi -p "Reply with OK"
 ```
 
-## Zscaler / corporate SSL workaround (for HF downloads and Nativ)
+Aliases are `qwen`, `laguna-fast`, `laguna`, and `glm`. Any full oMLX model ID also
+works. With no model argument, `omlx-model`, `omlx-start`, `omlx-start-bg`, and
+`omlx-restart` select Qwen and provider `omlx`. Changing pi's model does not require a
+restart:
 
-If your corporate network intercepts SSL (Zscaler):
-
-1. Extract Zscaler root CA:
-   ```
-   security find-certificate -a -c "Zscaler" -p /Library/Keychains/System.keychain > /tmp/zscaler.pem
-   ```
-2. Merge with certifi bundle and put in a stable location:
-   ```
-   mkdir -p ~/.config/nativ
-   cat $(python3 -c "import certifi; print(certifi.where())") /tmp/zscaler.pem > ~/.config/nativ/cacert.pem
-   ```
-3. Set env vars persistently for GUI apps (Nativ, HF CLI):
-   ```
-   launchctl setenv SSL_CERT_FILE "$HOME/.config/nativ/cacert.pem"
-   launchctl setenv REQUESTS_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
-   launchctl setenv CURL_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
-   ```
-4. HuggingFace Xet is also broken behind Zscaler — force the classic HTTP downloader:
-   ```
-   launchctl setenv HF_HUB_DISABLE_XET 1
-   launchctl setenv HF_HUB_ENABLE_HF_TRANSFER 0
-   ```
-5. Zscaler DLP also blocks Python (.py) file downloads. When fetching models that include
-   a `config.py` (e.g. `poolside/Laguna-S-2.1-DFlash`), briefly disconnect Zscaler for the
-   config.py fetch, then reconnect.
-
-## Verify tuning
-
-```
-python3 tools/bench_omlx.py
+```sh
+omlx-model glm
+omlx-model laguna-fast
+omlx-model qwen
 ```
 
-Expected on M5 Max High Power:
-- decode ~60-65 tok/s
-- TTFT small prompt ~360 ms
-- TTFT 1k prompt ~640 ms
+Restart for daemon or configuration changes:
+
+```sh
+omlx-restart
+```
+
+## 5. Verify and benchmark
+
+```sh
+curl -sS http://127.0.0.1:8000/v1/models | python3 -m json.tool
+python3 tools/bench_omlx.py --model qwen --no-nativ
+```
+
+Expected smoke-test results:
+
+```text
+direct oMLX response: QWEN_OK
+headless pi response: PI_QWEN_OK
+```
+
+Use this minimal headless test to avoid extension startup affecting diagnosis:
+
+```sh
+pi --print --mode text --no-extensions --no-skills --no-context-files \
+  --no-tools --no-session --offline \
+  --system-prompt 'Answer exactly as requested.' \
+  'Reply with exactly: PI_QWEN_OK'
+```
+
+For a separate Nativ comparison, provide its slash-form model ID explicitly:
+
+```sh
+python3 tools/bench_omlx.py --model qwen \
+  --nativ-model mlx-community/Laguna-S-2.1-oQ4e-fast
+```
+
+## Corporate TLS interception
+
+The scripts automatically use `~/.config/nativ/cacert.pem` when present and disable
+Hugging Face Xet. To build a Zscaler-compatible bundle:
+
+```sh
+security find-certificate -a -c "Zscaler" -p \
+  /Library/Keychains/System.keychain > /tmp/zscaler.pem
+mkdir -p ~/.config/nativ
+cat "$(python3 -c 'import certifi; print(certifi.where())')" \
+  /tmp/zscaler.pem > ~/.config/nativ/cacert.pem
+
+launchctl setenv SSL_CERT_FILE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv REQUESTS_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv CURL_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv HF_HUB_DISABLE_XET 1
+```

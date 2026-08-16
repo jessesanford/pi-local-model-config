@@ -1,12 +1,36 @@
 #!/usr/bin/env zsh
-# Robust restart of oMLX serving from ~/.cache/huggingface/hub.
+# Robust restart of oMLX serving from ~/.cache/huggingface/hub (multi-model).
+# Defaults pi to Qwen; use -m/--model <alias> to select another model.
+# Aliases: qwen (default), laguna-fast, laguna, glm
 # Kills any prior instance, relaunches in background, waits for health.
 # Portable: cert bundle env vars are set only if the bundle actually exists.
 
 set -u
 
+SCRIPT_DIR=${0:A:h}
+source "$SCRIPT_DIR/omlx-model"
+
+MODEL_ALIAS="$OMLX_DEFAULT_MODEL"
+PASSTHRU=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m|--model)
+      [[ $# -ge 2 ]] || { print -u2 "missing value for $1"; exit 2; }
+      MODEL_ALIAS="$2"; shift 2
+      ;;
+    *) PASSTHRU+=("$1"); shift ;;
+  esac
+done
+
+_omlx_set_pi_model "$MODEL_ALIAS"
+
 echo "→ stopping any running oMLX..."
-pkill -f "omlx serve" 2>/dev/null
+# Unload any launchd-managed oMLX agents (respawn if merely pkill'd)
+for plist in ~/Library/LaunchAgents/io.omlx.*.plist(N); do
+  launchctl bootout gui/$(id -u) "$plist" 2>/dev/null && echo "  unloaded launchd agent: $(basename $plist)"
+done
+pkill -f "omlx serve" 2>/dev/null   # foreground serve processes
+pkill -f "omlx-server" 2>/dev/null  # residual managed daemon
 /opt/homebrew/opt/omlx/bin/omlx stop 2>/dev/null
 sleep 2
 
@@ -14,6 +38,7 @@ for i in 1 2 3 4 5; do
   if lsof -iTCP:8000 -sTCP:LISTEN -n -P >/dev/null 2>&1; then
     echo "  waiting for :8000 to free..."
     pkill -9 -f "omlx serve" 2>/dev/null
+    pkill -9 -f "omlx-server" 2>/dev/null
     sleep 2
   else
     break
@@ -22,9 +47,6 @@ done
 
 echo "→ starting oMLX (background) with tuned env..."
 
-# Only export CA bundle vars when the bundle exists on this machine.
-# On a machine without Zscaler, pointing SSL_CERT_FILE at a missing path breaks
-# Python SSL verification entirely.
 if [ -f "$HOME/.config/nativ/cacert.pem" ]; then
   export SSL_CERT_FILE="$HOME/.config/nativ/cacert.pem"
   export REQUESTS_CA_BUNDLE="$HOME/.config/nativ/cacert.pem"
@@ -32,7 +54,6 @@ if [ -f "$HOME/.config/nativ/cacert.pem" ]; then
   echo "  (using custom CA bundle for Zscaler compatibility)"
 fi
 
-# HF Xet fetcher is fine to disable regardless; classic HTTP downloads work everywhere.
 export HF_HUB_DISABLE_XET=1
 export HF_HUB_ENABLE_HF_TRANSFER=0
 
@@ -41,6 +62,7 @@ nohup /opt/homebrew/opt/omlx/bin/omlx serve \
   --port 8000 \
   --hf-cache \
   --log-level info \
+  "${PASSTHRU[@]}" \
   > /tmp/omlx.log 2>&1 &
 
 NEW_PID=$!

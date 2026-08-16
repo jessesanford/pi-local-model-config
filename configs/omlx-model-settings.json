@@ -1,8 +1,20 @@
 {
+  "lmstudio-community--Qwen3.8-27B-MLX-8bit": {
+    "enable_thinking": false
+  },
   "mlx-community--Laguna-S-2.1-oQ4e-fast": {
     "enable_thinking": true
   },
   "mlx-community--Laguna-S-2.1-oQ4e": {
     "enable_thinking": true
+  },
+  "mlx-community--GLM-4.5-Air-8bit": {
+    "enable_thinking": false
+  },
+  "lmstudio-community--GLM-4.5-Air-MLX-6bit": {
+    "enable_thinking": false
+  },
+  "GLM-4.5-Air-6bit": {
+    "enable_thinking": false
   }
 }

@@ -8,7 +8,7 @@
     "npm:pi-subagents"
   ],
   "defaultProvider": "omlx",
-  "defaultModel": "mlx-community--Laguna-S-2.1-oQ4e-fast",
+  "defaultModel": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
   "httpIdleTimeoutMs": 0,
-  "defaultThinkingLevel": "minimal"
+  "defaultThinkingLevel": "off"
 }

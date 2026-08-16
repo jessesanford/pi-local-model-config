@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """Benchmark oMLX vs Nativ: decode tok/s, prefill tok/s, TTFT."""
-import json, time, urllib.request, urllib.error, sys
+import json, time, urllib.request, urllib.error
+
+MODEL_ALIASES = {
+    "qwen": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+    "qwen3.8": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+    "laguna-fast": "mlx-community--Laguna-S-2.1-oQ4e-fast",
+    "laguna": "mlx-community--Laguna-S-2.1-oQ4e",
+    "glm": "mlx-community--GLM-4.5-Air-8bit",
+    "glm-air": "mlx-community--GLM-4.5-Air-8bit",
+}
 
 def call(url, model, prompt, max_tokens=300, stream=False):
     body = json.dumps({
@@ -70,10 +79,17 @@ def bench_ttft(label, url, model, prompt):
             print(f"  run{i+1}: {e}")
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Benchmark oMLX decode speed and TTFT")
+    parser.add_argument("--model", "-m", default="qwen",
+                        help="model alias or oMLX model ID (default: qwen)")
+    parser.add_argument("--nativ-model", help="optional Nativ model ID")
+    parser.add_argument("--no-nativ", action="store_true", help="Skip Nativ benchmarks")
+    args = parser.parse_args()
+
     OMLX = "http://127.0.0.1:8000/v1"
     NATIV = "http://127.0.0.1:8080/v1"
-    OMLX_M = "mlx-community--Laguna-S-2.1-oQ4e-fast"
-    NATIV_M = "mlx-community/Laguna-S-2.1-oQ4e-fast"
+    OMLX_M = MODEL_ALIASES.get(args.model, args.model)
 
     small_prompt = "Write a detailed 400-word explanation of how HashMap works. Keep going until you hit the token limit."
     long_prompt = "the quick brown fox jumps over the lazy dog. " * 130 + " Now write a 200-word story."
@@ -83,5 +99,6 @@ if __name__ == "__main__":
     bench_ttft("oMLX small", OMLX, OMLX_M, "hi")
     bench_ttft("oMLX 1k prompt", OMLX, OMLX_M, long_prompt)
 
-    bench("Nativ small prompt / 500 gen", NATIV, NATIV_M, small_prompt, runs=2, max_tokens=500)
-    bench_ttft("Nativ 1k prompt", NATIV, NATIV_M, long_prompt)
+    if not args.no_nativ and args.nativ_model:
+        bench("Nativ small prompt / 500 gen", NATIV, args.nativ_model, small_prompt, runs=2, max_tokens=500)
+        bench_ttft("Nativ 1k prompt", NATIV, args.nativ_model, long_prompt)

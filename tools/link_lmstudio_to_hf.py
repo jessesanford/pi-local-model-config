@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Hardlink LM Studio MLX models into HF cache format."""
-import json, os, sys, urllib.request, urllib.error
+"""Hardlink selected LM Studio MLX models into HF cache format."""
+import argparse
+import json
+import os
+import urllib.error
+import urllib.request
 
-LMS_ROOT = "/Users/jesse.sanford/.lmstudio/models"
+LMS_ROOT = os.path.expanduser("~/.lmstudio/models")
 HF_CACHE = os.path.expanduser("~/.cache/huggingface/hub")
 
 def fetch_tree(repo_id):
@@ -84,16 +88,33 @@ def process(repo_id, src_dir):
         ok += 1
     print(f"  LINKED {ok} files, rev={rev[:12]}")
 
-candidates = []
-for org in os.listdir(LMS_ROOT):
-    org_dir = os.path.join(LMS_ROOT, org)
-    if not os.path.isdir(org_dir): continue
-    for repo in os.listdir(org_dir):
-        d = os.path.join(org_dir, repo)
-        if not os.path.isdir(d): continue
-        if not os.path.exists(os.path.join(d, "config.json")): continue
-        if not any(fn.endswith(".safetensors") for fn in os.listdir(d)): continue
-        candidates.append((f"{org}/{repo}", d))
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("model", nargs="*", help="HF model ID(s), or all models when omitted")
+    parser.add_argument("--lmstudio-root", default=LMS_ROOT)
+    args = parser.parse_args()
+    requested = set(args.model)
 
-for repo_id, src in candidates:
-    process(repo_id, src)
+    candidates = []
+    for org in os.listdir(args.lmstudio_root):
+        org_dir = os.path.join(args.lmstudio_root, org)
+        if not os.path.isdir(org_dir): continue
+        for repo in os.listdir(org_dir):
+            repo_id = f"{org}/{repo}"
+            if requested and repo_id not in requested: continue
+            model_dir = os.path.join(org_dir, repo)
+            if not os.path.isdir(model_dir): continue
+            if not os.path.exists(os.path.join(model_dir, "config.json")): continue
+            if not any(name.endswith(".safetensors") for name in os.listdir(model_dir)): continue
+            candidates.append((repo_id, model_dir))
+
+    found = {repo_id for repo_id, _ in candidates}
+    missing = requested - found
+    if missing:
+        parser.error("model not found in LM Studio: " + ", ".join(sorted(missing)))
+    for repo_id, source in candidates:
+        process(repo_id, source)
+
+
+if __name__ == "__main__":
+    main()
