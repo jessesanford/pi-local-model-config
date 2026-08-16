@@ -38,7 +38,7 @@
   "cache": {
     "enabled": true,
     "hot_cache_only": false,
-    "ssd_cache_dir": null,
+    "ssd_cache_dir": "~/.omlx/cache-0.5.7",
     "ssd_cache_max_size": "auto",
     "hot_cache_max_size": "8GB",
     "initial_cache_blocks": 8192

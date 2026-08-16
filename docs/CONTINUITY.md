@@ -74,7 +74,6 @@ added when appropriate:
   "packages": [
     "npm:pi-smart-web-search",
     "npm:pi-smart-fetch",
-    "npm:@narumitw/pi-retry",
     "npm:pi-subagents"
   ],
   "defaultProvider": "omlx",
@@ -148,7 +147,8 @@ Create `configs/omlx-model-settings.json`:
 Create `configs/omlx-settings.json` with localhost port 8000, HF-cache discovery, balanced
 memory guard, chunked prefill, aggressive burst decode, 8 GiB hot cache, SSD cache enabled,
 262,144 maximum context, 32,768 maximum output, temperature 1.0, top-p 1.0, top-k 20, and
-repetition penalty 1.0. Never embed a real secret; use a placeholder that oMLX replaces.
+repetition penalty 1.0. Set `cache.ssd_cache_dir` to `~/.omlx/cache-0.5.7`. Never embed a
+real secret; use a placeholder that oMLX replaces.
 Avoid machine-specific network aliases and absolute usernames.
 
 Create `configs/pi-APPEND_SYSTEM.md` with concise policies for credential safety, explicit
@@ -250,6 +250,10 @@ be followed by checking `/opt/homebrew/opt/omlx`, `/opt/homebrew/bin/omlx --vers
 Install repository configs/scripts to `~/.omlx`, `~/.pi/agent`, and `~/.local/bin`. Copy, do not
 symlink, unless the user requests otherwise. Ensure scripts are executable and PATH is set.
 
+Do not install `@narumitw/pi-retry`. If it is present, run
+`pi remove npm:@narumitw/pi-retry`. Its 90-second stall watchdog aborts healthy local
+requests during silent cold loads and long prefills; pi's HTTP idle timeout is already disabled.
+
 After LM Studio finishes Qwen, run the targeted linker. Verify all indexed shards before and
 all snapshot links/shared inodes after.
 
@@ -268,6 +272,12 @@ pi --list-models qwen3.8 -> provider omlx, context 262.1K, max-out 32.8K,
 The first Qwen request can take several minutes: loading is about 28 GiB, and an existing SSD
 cache scan once took roughly seven minutes. Watch oMLX logs rather than killing a quiet curl.
 The successful load should identify a VLM engine and approximately 27.9 GiB actual weights.
+
+Use `~/.omlx/cache-0.5.7` for current cache data. A verified incident involved 5,047
+incompatible blocks totaling 417.03 GB under `~/.omlx/cache`; scanning them took 6 minutes
+27 seconds and triggered the removed retry extension. Do not delete that legacy directory
+automatically. Isolating the new cache fixed the cold headless request, which then completed
+in 10 seconds.
 
 Direct smoke test:
 

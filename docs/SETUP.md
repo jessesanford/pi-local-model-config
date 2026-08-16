@@ -39,6 +39,13 @@ chmod +x ~/.local/bin/omlx-*
 
 Ensure `~/.local/bin` is on `PATH`.
 
+Do not install `npm:@narumitw/pi-retry`. Its 90-second stream watchdog is unsuitable for
+silent local model loads and long prefills. If already installed, remove it:
+
+```sh
+pi remove npm:@narumitw/pi-retry
+```
+
 ## 3. Link LM Studio models
 
 LM Studio and Hugging Face use different cache layouts. The linker creates hardlinks,
@@ -89,6 +96,9 @@ Expected smoke-test results:
 direct oMLX response: QWEN_OK
 headless pi response: PI_QWEN_OK
 ```
+
+The configured SSD cache path is `~/.omlx/cache-0.5.7`. A separate older
+`~/.omlx/cache` can remain in place, but oMLX must not scan it when starting Qwen.
 
 Use this minimal headless test to avoid extension startup affecting diagnosis:
 

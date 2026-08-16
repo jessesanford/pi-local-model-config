@@ -105,6 +105,27 @@ Verified on August 15, 2026:
 Qwen thinking is disabled in `configs/omlx-model-settings.json` and pi's default thinking
 level is `off`; this avoids reasoning text leaking into short responses.
 
+## Request-aborted fix
+
+Do not install `@narumitw/pi-retry` for this local model. Its stall watchdog aborts a
+provider stream after 90 seconds without events, but a legitimate cold MLX load or long
+prefill can remain quiet longer than that. pi already has an unlimited HTTP idle timeout in
+this configuration.
+
+oMLX uses `~/.omlx/cache-0.5.7` for new SSD cache data. This avoids repeatedly scanning an
+older `~/.omlx/cache` that may contain incompatible blocks. The old cache is deliberately
+left untouched; remove it manually only after deciding its data is no longer needed.
+
+If pi reports `Request aborted` with a `[stall-watchdog-retry]` message:
+
+```sh
+pi remove npm:@narumitw/pi-retry
+brew services restart omlx
+pi -p "Reply with exactly PI_OK"
+```
+
+This fix was verified with a cold headless pi response in 10 seconds.
+
 ## Disaster recovery
 
 [docs/PROMPT.md](docs/PROMPT.md) is the normal rebuild prompt when this repository is

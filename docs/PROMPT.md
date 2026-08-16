@@ -18,6 +18,8 @@ existing settings, and never expose credentials.
 - Default model: `lmstudio-community--Qwen3.8-27B-MLX-8bit`.
 - Qwen aliases: `qwen`, `qwen3.8`; thinking disabled; 262,144 context; image input.
 - Retain Laguna aliases `laguna-fast`, `laguna` and GLM aliases `glm`, `glm-air`.
+- SSD cache directory: `~/.omlx/cache-0.5.7`, isolated from incompatible legacy caches.
+- Do not install `@narumitw/pi-retry`; its 90-second watchdog aborts valid cold loads.
 - No-argument `omlx-model`, `omlx-start`, `omlx-start-bg`, and `omlx-restart` must select
   Qwen and provider `omlx`.
 
@@ -151,6 +153,11 @@ Require exact output `PI_QWEN_OK`. Do not add provider/model flags: this test mu
 the defaults work. If an agent sandbox reports `EPERM` for `~/.pi`, rerun with approved
 filesystem access; an unreadable settings file can make pi silently fall back to an
 Anthropic model and produce a misleading connection error.
+
+If the error includes `[stall-watchdog-retry]`, remove `npm:@narumitw/pi-retry`. One
+verified failure was caused by oMLX silently scanning 417 GB of incompatible cache blocks
+for 6 minutes 27 seconds while that extension aborted after 90 seconds. Keep the legacy
+cache untouched, point oMLX at `~/.omlx/cache-0.5.7`, restart the service, and retry.
 
 ## 7. Final checks
 
