@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+# Check the MTPLX local OpenAI-compatible endpoint.
+
+set -euo pipefail
+
+PORT="${MTPLX_PORT:-8000}"
+URL="http://127.0.0.1:$PORT/v1/models"
+
+if curl -sS --max-time 3 "$URL" >/dev/null 2>&1; then
+  echo "MTPLX endpoint: UP on :$PORT"
+  curl -sS --max-time 5 "$URL" | python3 -m json.tool | sed -n '1,120p'
+else
+  echo "MTPLX endpoint: DOWN on :$PORT"
+  exit 1
+fi

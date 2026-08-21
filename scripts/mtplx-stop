@@ -1,0 +1,17 @@
+#!/usr/bin/env zsh
+# Stop MTPLX server processes started by mtplx-start-bg or the MTPLX CLI.
+
+set -euo pipefail
+
+PIDFILE="${MTPLX_PIDFILE:-/tmp/mtplx.pid}"
+if [[ -f "$PIDFILE" ]]; then
+  pid=$(cat "$PIDFILE" 2>/dev/null || true)
+  if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null || true
+  fi
+  rm -f "$PIDFILE"
+fi
+
+pkill -f 'mtplx serve' 2>/dev/null || true
+
+echo "MTPLX stopped if it was running."

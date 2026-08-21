@@ -1,0 +1,56 @@
+#!/usr/bin/env zsh
+# Background MTPLX OpenAI-compatible server for local pi/Prime use.
+# Stops oMLX fallback first if it owns the default port.
+
+set -euo pipefail
+
+SCRIPT_DIR=${0:A:h}
+PORT="${MTPLX_PORT:-8000}"
+LOG="${MTPLX_LOG:-/tmp/mtplx.log}"
+PIDFILE="${MTPLX_PIDFILE:-/tmp/mtplx.pid}"
+
+if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+  if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P 2>/dev/null | grep -qi 'omlx' || \
+     curl -sS --max-time 2 "http://127.0.0.1:$PORT/v1/models" 2>/dev/null | grep -q '"owned_by"[[:space:]]*:[[:space:]]*"omlx"'; then
+    echo "stopping oMLX fallback on :$PORT..."
+    /opt/homebrew/opt/omlx/bin/omlx stop 2>/dev/null || true
+    pkill -f 'omlx serve' 2>/dev/null || true
+    pkill -f 'omlx-server' 2>/dev/null || true
+  else
+    echo "port :$PORT is already in use:" >&2
+    lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >&2 || true
+    exit 1
+  fi
+fi
+
+for _ in {1..20}; do
+  lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1 || break
+  sleep 1
+done
+
+if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+  echo "port :$PORT did not free" >&2
+  lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >&2 || true
+  exit 1
+fi
+
+echo "starting MTPLX on 127.0.0.1:$PORT..."
+nohup "$SCRIPT_DIR/mtplx-start" "$@" > "$LOG" 2>&1 &
+server_pid=$!
+echo "$server_pid" > "$PIDFILE"
+echo "pid=$server_pid log=$LOG"
+
+echo "waiting for MTPLX /v1/models..."
+for i in {1..120}; do
+  if curl -sS --max-time 2 "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then
+    echo "MTPLX is up on http://127.0.0.1:$PORT/v1"
+    curl -sS --max-time 5 "http://127.0.0.1:$PORT/v1/models" | python3 -m json.tool | sed -n '1,80p'
+    exit 0
+  fi
+  printf '...%ds\r' "$i"
+  sleep 1
+done
+
+echo "MTPLX did not become ready. Last 60 log lines:" >&2
+tail -60 "$LOG" >&2 || true
+exit 1

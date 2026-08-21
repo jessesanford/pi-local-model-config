@@ -6,8 +6,8 @@
     "npm:pi-smart-fetch",
     "npm:pi-subagents"
   ],
-  "defaultProvider": "omlx",
-  "defaultModel": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+  "defaultProvider": "mtplx",
+  "defaultModel": "mtplx",
   "httpIdleTimeoutMs": 0,
   "defaultThinkingLevel": "off"
 }

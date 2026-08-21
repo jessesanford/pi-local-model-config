@@ -17,25 +17,31 @@ weights or caches. Stop only for a real blocker or a destructive operation requi
 ## Canonical architecture
 
 - Client: pi coding agent.
-- Server and macOS daemon: oMLX, not standalone `mlx-vlm`.
-- Minimum verified oMLX: `0.5.7`.
+- Preferred server/runtime: MTPLX, not oMLX or standalone `mlx-vlm`.
+- Minimum verified MTPLX: `2.9.0`.
+- oMLX `0.5.7` or newer remains a fallback for legacy multi-model/VLM serving.
 - API: OpenAI completions at `http://127.0.0.1:8000/v1`.
-- Service: Homebrew/launchd label `homebrew.mxcl.omlx`.
-- Server mode: multi-model, Hugging Face cache discovery, localhost only.
-- Default model: `lmstudio-community--Qwen3.8-27B-MLX-8bit`.
-- Qwen source repo: `lmstudio-community/Qwen3.8-27B-MLX-8bit`.
-- Qwen is a `qwen3_5` VLM using `Qwen3_5ForConditionalGeneration`, about 28 GiB,
-  262,144-token context, image input, thinking disabled.
+- Preferred served model ID: `mtplx`.
+- Preferred backing model: `Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed`.
+- Preferred cache: `~/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Speed`.
+- Server mode: localhost only, OpenAI-compatible, native MTP enabled by default.
+- oMLX fallback model: `lmstudio-community--Qwen3.8-27B-MLX-8bit`.
+- oMLX fallback source repo: `lmstudio-community/Qwen3.8-27B-MLX-8bit`.
+- oMLX fallback Qwen is a `qwen3_5` VLM using `Qwen3_5ForConditionalGeneration`, about
+  28 GiB, 262,144-token context, image input, thinking disabled.
 - Keep optional Laguna and GLM choices.
+- Install MTPLX with `brew install youssofal/mtplx/mtplx` or the Mac app DMG from
+  `https://mtplx.com/download`.
 
-Canonical aliases and oMLX API IDs:
+Canonical preferred and fallback aliases:
 
 ```text
-qwen, qwen3.8 -> lmstudio-community--Qwen3.8-27B-MLX-8bit
-qwen-bf16, qwen16 -> mlx-community--Qwen3.8-27B-bf16
-laguna-fast   -> mlx-community--Laguna-S-2.1-oQ4e-fast
-laguna        -> mlx-community--Laguna-S-2.1-oQ4e
-glm, glm-air  -> mlx-community--GLM-4.5-Air-8bit
+qwen, qwen3.8 -> provider mtplx, model mtplx
+qwen-omlx     -> provider omlx, model lmstudio-community--Qwen3.8-27B-MLX-8bit
+qwen-bf16, qwen16 -> provider omlx, model mlx-community--Qwen3.8-27B-bf16
+laguna-fast   -> provider omlx, model mlx-community--Laguna-S-2.1-oQ4e-fast
+laguna        -> provider omlx, model mlx-community--Laguna-S-2.1-oQ4e
+glm, glm-air  -> provider omlx, model mlx-community--GLM-4.5-Air-8bit
 ```
 
 ## Repository to create
@@ -58,6 +64,10 @@ scripts/omlx-start-bg
 scripts/omlx-restart
 scripts/omlx-stop
 scripts/omlx-status
+scripts/mtplx-start
+scripts/mtplx-start-bg
+scripts/mtplx-stop
+scripts/mtplx-status
 tools/link_lmstudio_to_hf.py
 tools/bench_omlx.py
 ```
@@ -77,14 +87,38 @@ added when appropriate:
     "npm:pi-smart-fetch",
     "npm:pi-subagents"
   ],
-  "defaultProvider": "omlx",
-  "defaultModel": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+  "defaultProvider": "mtplx",
+  "defaultModel": "mtplx",
   "httpIdleTimeoutMs": 0,
   "defaultThinkingLevel": "off"
 }
 ```
 
-Create `configs/pi-models.json`. It may contain other providers, but `providers.omlx` must be:
+Create `configs/pi-models.json`. It may contain other providers, but `providers.mtplx`
+must be present and preferred:
+
+```json
+{
+  "api": "openai-completions",
+  "apiKey": "mtplx",
+  "baseUrl": "http://127.0.0.1:8000/v1",
+  "compat": {
+    "supportsDeveloperRole": false,
+    "supportsReasoningEffort": false
+  },
+  "models": [
+    {
+      "id": "mtplx",
+      "name": "qwen3.8-27b-mtplx-optimized-speed",
+      "contextWindow": 262144,
+      "input": ["text"],
+      "maxTokens": 32768
+    }
+  ]
+}
+```
+
+Also preserve `providers.omlx` as the fallback provider:
 
 ```json
 {
@@ -136,8 +170,9 @@ Create `configs/pi-models.json`. It may contain other providers, but `providers.
 }
 ```
 
-Do not accidentally put Qwen under a legacy `local` provider. Verify with
-`pi --list-models qwen3.8`; the provider column must say `omlx`.
+Do not accidentally put the preferred Qwen under a legacy `local` provider. Verify with
+`pi --list-models mtplx`; the provider column must say `mtplx`. Verify the fallback with
+`pi --list-models qwen3.8`; that provider column may say `omlx`.
 
 Create `configs/omlx-model-settings.json`:
 
@@ -153,7 +188,7 @@ Create `configs/omlx-model-settings.json`:
 }
 ```
 
-Create `configs/omlx-settings.json` with localhost port 8000, HF-cache discovery, balanced
+Create `configs/omlx-settings.json` for fallback serving with localhost port 8000, HF-cache discovery, balanced
 memory guard, chunked prefill, aggressive burst decode, 8 GiB hot cache, SSD cache enabled,
 262,144 maximum context, 32,768 maximum output, temperature 1.0, top-p 1.0, top-k 20, and
 repetition penalty 1.0. Set `cache.ssd_cache_dir` to `~/.omlx/cache-0.5.7`. Never embed a
@@ -164,16 +199,16 @@ Create `configs/pi-APPEND_SYSTEM.md` with concise policies for credential safety
 GitHub host selection on multi-host machines, optional subagent use only when registered, and
 context conservation for local models. No company hostname or credential may be hardcoded.
 
-## Canonical script behavior
+## Canonical fallback script behavior
 
-Put shared behavior in `scripts/omlx-model`; all lifecycle scripts must source it by their own
+The oMLX scripts are fallback utilities. Put shared behavior in `scripts/omlx-model`; all lifecycle scripts must source it by their own
 absolute script directory (`${0:A:h}` in zsh). Define `OMLX_DEFAULT_MODEL="qwen"` once.
 
 `omlx-model` requirements:
 
 - Resolve the canonical aliases above; pass unknown strings through unchanged.
 - With no argument, select Qwen. Accept at most one argument.
-- Update both `defaultProvider` to `omlx` and `defaultModel` in
+- When explicitly switching to the fallback runtime, update both `defaultProvider` to `omlx` and `defaultModel` in
   `~/.pi/agent/settings.json` using Python JSON APIs.
 - Pass settings path/model through environment variables, never interpolate user input into
   Python source.
@@ -219,7 +254,7 @@ Implement `tools/link_lmstudio_to_hf.py` with `argparse` and standard library on
 - Hardlink source files into blobs and create relative snapshot symlinks.
 - Be idempotent and report missing requested models as an argparse error.
 
-Canonical Qwen source path:
+Canonical oMLX fallback Qwen source path:
 
 ```text
 ~/.lmstudio/models/lmstudio-community/Qwen3.8-27B-MLX-8bit
@@ -232,8 +267,8 @@ A newer upstream revision is acceptable when manifest validation succeeds.
 Optional bf16 source: `~/.lmstudio/models/mlx-community/Qwen3.8-27B-bf16`. The verified
 download had 11 shards, 50.98 GiB, revision
 `6f265714824f3c38d4452baa1628aef3d9b9aae9`, 24 snapshot links, and 11/11 shared shard
-inodes. Register it as `qwen-bf16`/`qwen16`, but keep 8-bit Qwen as the default and do not
-load or inference-test bf16 without explicit instruction.
+inodes. Register it as `qwen-bf16`/`qwen16` for oMLX fallback, but keep MTPLX as the
+default and do not load or inference-test bf16 without explicit instruction.
 
 On macOS, compare source inode with `stat -f %i` and dereferenced snapshot inode with
 `stat -Lf %i`. A non-dereferenced check compares the symlink inode and falsely reports that
@@ -242,14 +277,26 @@ hardlinks are absent. `du` counts hardlinks per argument and can also misleading
 
 ## Benchmark tool
 
-Implement `tools/bench_omlx.py` with these aliases and Qwen as argparse default. It must accept
-arbitrary model IDs through `--model/-m`, benchmark direct oMLX chat completions and streaming
-TTFT, and skip Nativ unless an explicit `--nativ-model` is supplied. Do not retain a hidden
-Laguna default.
+Implement `tools/bench_omlx.py` as a fallback comparison tool with these aliases and Qwen as
+argparse default. It must accept arbitrary model IDs through `--model/-m`, benchmark direct
+oMLX chat completions and streaming TTFT, and skip Nativ unless an explicit `--nativ-model`
+is supplied. Do not retain a hidden Laguna default.
 
 ## Installation and model linking
 
-Install pi if absent using its official installer. Install oMLX with Homebrew:
+Install pi if absent using its official installer. Install MTPLX first:
+
+```sh
+brew install youssofal/mtplx/mtplx
+mtplx --version
+```
+
+The MTPLX Mac app is also acceptable: download `https://mtplx.com/download`, drag it to
+Applications, launch it, and verify it created `~/.mtplx/bin/mtplx` plus its runtime under
+`~/Library/Application Support/MTPLX`. Use MTPLX's own downloader or CLI for
+`Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed`.
+
+Install oMLX only for fallback serving:
 
 ```sh
 brew tap jundot/omlx https://github.com/jundot/omlx
@@ -257,38 +304,136 @@ brew update
 brew upgrade omlx || brew install omlx
 ```
 
-Require `omlx --version` to report `0.5.7` or newer. Homebrew can prompt during an upgrade;
-answer deliberately and wait for completion. A transient "Failed to fix install linkage" must
-be followed by checking `/opt/homebrew/opt/omlx`, `/opt/homebrew/bin/omlx --version`, and
-`brew list --versions omlx`; do not assume failure if the final upgrade and symlinks succeeded.
+Require `mtplx --version` to report `2.9.0` or newer. Require `omlx --version` to report
+`0.5.7` or newer only when the fallback path is installed. Homebrew can prompt during an
+upgrade; answer deliberately and wait for completion. A transient oMLX "Failed to fix install
+linkage" must be followed by checking `/opt/homebrew/opt/omlx`,
+`/opt/homebrew/bin/omlx --version`, and `brew list --versions omlx`; do not assume failure if
+the final upgrade and symlinks succeeded.
 
 Install repository configs/scripts to `~/.omlx`, `~/.pi/agent`, and `~/.local/bin`. Copy, do not
 symlink, unless the user requests otherwise. Ensure scripts are executable and PATH is set.
+
+## Corporate MITM TLS setup for MTPLX and Hugging Face
+
+If Hugging Face, oMLX, MTPLX, Python, or curl fail with `CERTIFICATE_VERIFY_FAILED` behind
+Zscaler or another MITM proxy, create one shared CA bundle at `~/.config/nativ/cacert.pem`.
+Do not blindly append every macOS Keychain certificate: MTPLX's Python 3.14/OpenSSL 3.5
+uses strict verification and a broad Keychain export reproduced `Basic Constraints of CA
+cert not marked critical`. The verified fix was certifi plus only the strict-compatible
+Zscaler CA certificates from the intercepted Hugging Face chain:
+
+```sh
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/hf-zscaler-ca.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT
+
+openssl s_client -connect huggingface.co:443 -servername huggingface.co \
+  -showcerts </dev/null > "$tmpdir/chain.txt" 2>/dev/null
+
+awk '/-----BEGIN CERTIFICATE-----/{n++; in_cert=1} in_cert{print > sprintf("'"$tmpdir"'/chain-%04d.pem", n)} /-----END CERTIFICATE-----/{in_cert=0}' \
+  "$tmpdir/chain.txt"
+
+mkdir -p ~/.config/nativ ~/.ssl
+cat "$(python3 -c 'import certifi; print(certifi.where())')" > ~/.config/nativ/cacert.pem
+for cert in "$tmpdir"/chain-*.pem; do
+  text=$(openssl x509 -in "$cert" -noout -text 2>/dev/null) || continue
+  subject=$(openssl x509 -in "$cert" -noout -subject 2>/dev/null)
+  if [[ "$text" == *"X509v3 Basic Constraints: critical"* && \
+        "$text" == *"CA:TRUE"* && \
+        "$subject" == *"Zscaler"* ]]; then
+    cat "$cert" >> ~/.config/nativ/cacert.pem
+  fi
+done
+
+ln -sfn "$HOME/.config/nativ/cacert.pem" "$HOME/.ssl/ca-bundle.pem"
+
+launchctl setenv SSL_CERT_FILE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv REQUESTS_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv CURL_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv NODE_EXTRA_CA_CERTS "$HOME/.config/nativ/cacert.pem"
+launchctl setenv GRPC_DEFAULT_SSL_ROOTS_FILE_PATH "$HOME/.config/nativ/cacert.pem"
+launchctl setenv AWS_CA_BUNDLE "$HOME/.config/nativ/cacert.pem"
+launchctl setenv HF_HUB_DISABLE_XET 1
+launchctl setenv HF_HUB_ENABLE_HF_TRANSFER 0
+```
+
+Persist those GUI variables across logins with a LaunchAgent that runs a small helper such
+as `~/.local/bin/mtplx-ca-env`. The helper should refresh or verify
+`~/.config/nativ/cacert.pem`, then run the same `launchctl setenv` commands above. Install
+the plist under `~/Library/LaunchAgents/com.jesse.mtplx-ca-env.plist` with `RunAtLoad=true`,
+then load it with `launchctl bootstrap gui/$(id -u) ...` and verify with
+`launchctl getenv SSL_CERT_FILE`.
+
+If shell startup files export `SSL_CERT_FILE`, point them at
+`~/.config/nativ/cacert.pem` or keep `~/.ssl/ca-bundle.pem` symlinked to it. One verified
+failure kept happening because `~/.zshrc` exported the stale `~/.ssl/ca-bundle.pem` path;
+the MTPLX GUI inherited that path and ignored the launchd `SSL_CERT_FILE` value. Patch
+`~/.mtplx/bin/mtplx` to export `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
+`NODE_EXTRA_CA_CERTS`, `GRPC_DEFAULT_SSL_ROOTS_FILE_PATH`, `AWS_CA_BUNDLE`,
+`HF_HUB_DISABLE_XET=1`, and `HF_HUB_ENABLE_HF_TRANSFER=0` before it execs MTPLX's runtime.
+
+Validate with MTPLX's bundled Python when present:
+
+```sh
+SSL_CERT_FILE="$HOME/.config/nativ/cacert.pem" \
+REQUESTS_CA_BUNDLE="$HOME/.config/nativ/cacert.pem" \
+"$HOME/Library/Application Support/MTPLX/runtime-venv/bin/python" - <<'PY'
+from urllib.request import urlopen
+with urlopen('https://huggingface.co/api/models/Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed', timeout=20) as response:
+    print(response.status)
+PY
+```
+
+The validation must print `200`. Restart already-running GUI apps after setting launchd
+environment variables. If MTPLX still fails, inspect its live environment with
+`ps eww -p $(pgrep -f MTPLXApp)` and fix the exact inherited `SSL_CERT_FILE` path.
 
 Do not install `@narumitw/pi-retry`. If it is present, run
 `pi remove npm:@narumitw/pi-retry`. Its 90-second stall watchdog aborts healthy local
 requests during silent cold loads and long prefills; pi's HTTP idle timeout is already disabled.
 
-After LM Studio finishes Qwen, run the targeted linker. Verify all indexed shards before and
-all snapshot links/shared inodes after.
+Download the preferred MTPLX model with the host helper script:
+
+```sh
+mtplx-start-bg --download
+```
+
+When validating the oMLX fallback, run the LM Studio targeted linker after LM Studio
+finishes Qwen. Verify all indexed shards before and all snapshot links/shared inodes after.
 
 ## Start and acceptance tests
 
-Start persistent serving with `omlx-start-bg` without a model argument. Require:
+Start preferred serving with MTPLX:
 
-```text
-brew services info omlx -> Running: true, Loaded: true
-GET /v1/models -> lmstudio-community--Qwen3.8-27B-MLX-8bit present
-pi settings -> defaultProvider=omlx and exact Qwen defaultModel
-pi --list-models qwen3.8 -> provider omlx, context 262.1K, max-out 32.8K,
-                           thinking no, images yes
+```sh
+mtplx-start-bg
+mtplx-status
 ```
 
-The first Qwen request can take several minutes: loading is about 28 GiB, and an existing SSD
-cache scan once took roughly seven minutes. Watch oMLX logs rather than killing a quiet curl.
-The successful load should identify a VLM engine and approximately 27.9 GiB actual weights.
+The helper must run this Mac-side API server command:
 
-Use `~/.omlx/cache-0.5.7` for current cache data. A verified incident involved 5,047
+```sh
+mtplx serve --model Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed \
+  --model-id mtplx --host 127.0.0.1 --port 8000 --no-auth --mtp
+```
+
+Require:
+
+```text
+GET /v1/models -> mtplx present
+pi settings -> defaultProvider=mtplx and defaultModel=mtplx
+pi --list-models mtplx -> provider mtplx, model mtplx
+```
+
+The first Qwen request can take several minutes: MTPLX may download, tune, load, and warm the
+native-MTP runtime. Watch MTPLX status/log output rather than killing a quiet request.
+
+For oMLX fallback only, start `omlx-start-bg` without a model argument and require Qwen in
+`/v1/models` under the exact ID `lmstudio-community--Qwen3.8-27B-MLX-8bit`. oMLX should
+classify it as a VLM and use its VLM engine. Keep Laguna and GLM discoverable when their
+caches exist. Stop MTPLX or use a different port before starting oMLX on 8000.
+
+Use `~/.omlx/cache-0.5.7` for oMLX fallback cache data. A verified incident involved 5,047
 incompatible blocks totaling 417.03 GB under `~/.omlx/cache`; scanning them took 6 minutes
 27 seconds and triggered the removed retry extension. Do not delete that legacy directory
 automatically. Isolating the new cache fixed the cold headless request, which then completed
@@ -299,12 +444,12 @@ Direct smoke test:
 ```sh
 curl -sS --max-time 900 http://127.0.0.1:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"lmstudio-community--Qwen3.8-27B-MLX-8bit","messages":[{"role":"user","content":"Reply with exactly QWEN_OK"}],"temperature":0,"max_tokens":64,"stream":false}'
+  -d '{"model":"mtplx","messages":[{"role":"user","content":"Reply with exactly QWEN_OK"}],"temperature":0,"max_tokens":64,"stream":false}'
 ```
 
-Require HTTP 200, exact model ID, `QWEN_OK`, and stop completion. If 16 tokens yields partial
-reasoning prose, that is not a serving failure: confirm `enable_thinking=false` and retry with
-64 tokens. The warm verified result was exact `QWEN_OK`.
+Require HTTP 200, model `mtplx`, `QWEN_OK`, and stop completion. For oMLX fallback only, use
+model `lmstudio-community--Qwen3.8-27B-MLX-8bit` and confirm `enable_thinking=false` if
+reasoning prose appears.
 
 Headless pi smoke test, with no provider/model override:
 
@@ -320,13 +465,13 @@ pi to ignore settings, fall back to Anthropic, and report a misleading connectio
 with approved access to `~/.pi` and loopback. Confirm the emitted provider/model or server log
 when diagnosing.
 
-The oMLX log line `Structured output requires xgrammar` does not block ordinary chat. Install
-the grammar extra only for grammar-constrained output.
+The oMLX log line `Structured output requires xgrammar` does not block ordinary fallback
+chat. Install the grammar extra only for grammar-constrained output.
 
-Leave the Homebrew-managed daemon running and Qwen selected. Finally write README, SETUP, the
-normal rebuild prompt, and this continuity prompt with the resulting exact commands and any
-newly verified version/revision differences. Run JSON validation, Python compilation, zsh
-syntax checks, `git diff --check`, direct inference, and headless pi inference before declaring
-success.
+Leave MTPLX running and pi selected to provider/model `mtplx`. Finally write README, SETUP,
+the normal rebuild prompt, and this continuity prompt with the resulting exact commands and
+any newly verified version/revision differences. Run JSON validation, Python compilation, zsh
+syntax checks, `git diff --check`, direct inference, and headless pi inference before
+declaring success.
 
 ---

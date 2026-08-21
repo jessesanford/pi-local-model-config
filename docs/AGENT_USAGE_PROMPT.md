@@ -5,46 +5,48 @@ use the already-configured local Qwen model and where to learn more.
 
 ---
 
-You have access to a local Qwen vision-language model served on this Mac. Use it when a
-local model is appropriate for coding, analysis, drafting, or image-aware prompts.
+You have access to a local Qwen model served on this Mac. Prefer MTPLX for Qwen 3.8
+because it uses native multi-token prediction by default and exposes a local
+OpenAI-compatible API.
 
-## Service details
+## Preferred service details
 
-- Runtime: oMLX `0.5.7` or newer, managed by Homebrew/launchd.
+- Runtime: MTPLX `2.9.0` or newer.
 - API base URL: `http://127.0.0.1:8000/v1`.
 - API style: OpenAI-compatible chat completions.
-- Model ID: `lmstudio-community--Qwen3.8-27B-MLX-8bit`.
-- pi provider: `omlx`.
-- pi model alias: `qwen` or `qwen3.8`.
-- Optional bf16 alias: `qwen-bf16` or `qwen16` (linked, not inference-tested).
-- Context window: 262,144 tokens.
-- Inputs: text and images.
-- Thinking is disabled by default.
+- Served model ID for clients: `mtplx`.
+- Backing model: `Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed`.
+- Cache path: `~/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Speed`.
+- pi provider: `mtplx`.
+- pi default model: `mtplx`.
+- Native MTP is on by default; use `--no-mtp` only for target-only AR comparison.
 
-## Check and start the service
+## Check and start MTPLX
 
-First check it without restarting a healthy daemon:
+First check whether something is already listening:
 
 ```sh
-omlx-status
 curl -sS --max-time 5 http://127.0.0.1:8000/v1/models \
   | python3 -m json.tool
 ```
 
-If it is down, start the persistent managed service:
+If it is down, start MTPLX for pi:
 
 ```sh
-omlx-start-bg
-omlx-status
+mtplx-start-bg
 ```
 
-Use `omlx-restart` only for a stuck daemon or changed oMLX configuration. Use
-`omlx-stop` to stop it. Service logs are at `~/.omlx/logs/server.log` and
-`$(brew --prefix)/var/log/omlx.log`.
+If the model is not cached yet, add `--download`.
+
+`mtplx-start-bg` runs `mtplx serve --model Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed
+--model-id mtplx --host 127.0.0.1 --port 8000 --no-auth --mtp` on the Mac host.
+
+Do not run oMLX on port 8000 at the same time. Stop whichever server owns the port before
+starting the other.
 
 ## Preferred use through pi
 
-Qwen and provider `omlx` are the configured defaults, so no model flags are needed:
+MTPLX and model `mtplx` are the configured defaults, so no model flags are needed:
 
 ```sh
 pi
@@ -64,11 +66,10 @@ pi --print --mode text --no-extensions --no-skills --no-context-files \
 Confirm pi's registration when needed:
 
 ```sh
-pi --list-models qwen3.8
+pi --list-models mtplx
 ```
 
-It should show provider `omlx`, context `262.1K`, maximum output `32.8K`, thinking
-`no`, and images `yes`.
+It should show provider `mtplx` and model `mtplx`.
 
 ## Direct API use
 
@@ -78,7 +79,7 @@ Use the API when you need model inference rather than a full coding-agent sessio
 curl -sS --max-time 900 http://127.0.0.1:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
-    "model": "lmstudio-community--Qwen3.8-27B-MLX-8bit",
+    "model": "mtplx",
     "messages": [
       {"role": "user", "content": "Explain what a content-addressed cache is."}
     ],
@@ -92,39 +93,61 @@ OpenAI-compatible clients should use:
 
 ```text
 base URL: http://127.0.0.1:8000/v1
-API key:  omlx
-model:    lmstudio-community--Qwen3.8-27B-MLX-8bit
+API key:  mtplx
+model:    mtplx
 ```
 
 The service is loopback-only. Do not expose port 8000 to the LAN.
 
-## Model switching
+## oMLX fallback
 
-The oMLX daemon is multi-model. Changing pi's default does not require restarting it:
+Use oMLX only when you need the older LM Studio/Hugging Face cache workflow, image-capable
+`lmstudio-community--Qwen3.8-27B-MLX-8bit`, Laguna, GLM, or another fallback model from
+the repository's existing oMLX scripts.
 
 ```sh
+omlx-start-bg --model qwen
+omlx-status
 omlx-model qwen
-omlx-model qwen-bf16
 omlx-model laguna-fast
 omlx-model laguna
 omlx-model glm
 ```
 
-Return to Qwen with `omlx-model qwen` or simply `omlx-model`.
+oMLX and MTPLX both default to port 8000 in this setup. Do not leave both running on that
+port. oMLX logs are at `~/.omlx/logs/server.log` and `$(brew --prefix)/var/log/omlx.log`.
 
-`qwen-bf16` selects `mlx-community--Qwen3.8-27B-bf16`, a roughly 51 GiB model. It
-has not been loaded or tested. Selection alone does not load weights; the first request does.
+## Corporate TLS interception
+
+If Hugging Face downloads fail behind Zscaler or another MITM proxy, use the shared CA
+bundle at `~/.config/nativ/cacert.pem`. The verified fix for MTPLX was certifi plus the
+strict-compatible Zscaler CA certificates from the intercepted Hugging Face chain. Also keep
+`~/.ssl/ca-bundle.pem` symlinked to that bundle because older shell config may export that
+path as `SSL_CERT_FILE`.
+
+Verify MTPLX's Python can reach Hugging Face:
+
+```sh
+SSL_CERT_FILE="$HOME/.config/nativ/cacert.pem" \
+REQUESTS_CA_BUNDLE="$HOME/.config/nativ/cacert.pem" \
+"$HOME/Library/Application Support/MTPLX/runtime-venv/bin/python" - <<'PY'
+from urllib.request import urlopen
+with urlopen('https://huggingface.co/api/models/Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed', timeout=20) as response:
+    print(response.status)
+PY
+```
+
+The validation must print `200`.
 
 ## Operational cautions
 
-- A cold model load can be quiet for a while. Inspect the oMLX log before aborting it.
+- A cold model load can be quiet for a while. Inspect MTPLX status/log output before
+  aborting it.
 - Do not install `@narumitw/pi-retry`; its 90-second watchdog aborts valid silent local
   loads and long prefills.
-- Current SSD cache data belongs in `~/.omlx/cache-0.5.7`. Do not delete the older
-  `~/.omlx/cache` automatically.
 - If a sandbox cannot read or lock `~/.pi`, pi may ignore local settings and fall back to
   another provider. Grant access to `~/.pi` and loopback, then retry.
-- Do not run a second inference server on port 8000 while oMLX is active.
+- Direct `mlx-vlm.generate` is useful for experiments but is not the preferred daemon.
 
 ## Project documentation
 
@@ -143,17 +166,17 @@ The current local checkout may still have its pre-rename directory name:
 Read these files before modifying the setup:
 
 ```text
-README.md                    Overview, model aliases, service usage, known fixes
+README.md                    Overview, preferred runtime, service usage, known fixes
 docs/SETUP.md                Installation and verification procedure
 docs/PROMPT.md               Rebuild workflow when the repository is available
 docs/CONTINUITY.md           Full reconstruction if the repository is lost
 configs/pi-settings.json     pi defaults and packages
 configs/pi-models.json       Provider and model definitions
-configs/omlx-settings.json   oMLX server, memory, cache, and sampling settings
-scripts/omlx-model           Shared model alias/default selection logic
+configs/omlx-settings.json   oMLX fallback server, memory, cache, and sampling settings
+scripts/omlx-model           oMLX fallback alias/default selection logic
 ```
 
-Prefer the repository's scripts and documented configuration over ad hoc service commands.
-Preserve Laguna and GLM support when changing Qwen defaults or oMLX behavior.
+Prefer MTPLX and the documented configuration over ad hoc service commands. Preserve oMLX
+fallback support when changing Qwen defaults.
 
 ---

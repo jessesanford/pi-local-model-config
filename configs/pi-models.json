@@ -1,5 +1,25 @@
 {
   "providers": {
+    "mtplx": {
+      "api": "openai-completions",
+      "apiKey": "mtplx",
+      "baseUrl": "http://127.0.0.1:8000/v1",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "mtplx",
+          "name": "qwen3.8-27b-mtplx-optimized-speed",
+          "contextWindow": 262144,
+          "input": [
+            "text"
+          ],
+          "maxTokens": 32768
+        }
+      ]
+    },
     "local": {
       "api": "openai-completions",
       "apiKey": "local",
